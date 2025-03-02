@@ -1,7 +1,7 @@
 pipeline {
   agent any 
   tools {
-    maven 'Maven'
+    maven 'maven' // Updated tool name to match Jenkins configuration
   }
   stages {
     stage ('Initialize') {
