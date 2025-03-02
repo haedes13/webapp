@@ -1,21 +1,37 @@
 pipeline {
-  agent any 
-  tools {
-    maven 'maven' // Updated tool name to match Jenkins configuration
-  }
-  stages {
-    stage ('Initialize') {
-      steps {
-        sh '''
-                    echo "PATH = ${PATH}"
-                    echo "M2_HOME = ${M2_HOME}"
-            ''' 
-      }
+    agent any
+
+    tools {
+        maven 'Maven'
     }
-    stage ('Build') {
-      steps {
-        sh 'mvn clean package'
-      }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git url: 'https://github.com/haedes13/webapp.git'
+            }
+        }
+
+        stage('Initialize') {
+            steps {
+                echo "PATH = ${env.PATH}"
+                echo "M2_HOME = ${env.M2_HOME}"
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'mvn clean package -X' // Added -X for debug output
+            }
+        }
     }
-  }
+
+    post {
+        success {
+            echo 'Build succeeded!'
+        }
+        failure {
+            echo 'Build failed!'
+        }
+    }
 }
