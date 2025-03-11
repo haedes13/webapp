@@ -24,14 +24,22 @@ pipeline {
                 sh 'mvn clean package -X' // Added -X for debug output
             }
         }
+
+        stage('Deploy-To-Tomcat') {
+            steps {
+                sshagent(['tomcat']) { 
+                    sh 'scp -o StrictHostKeyChecking=no target/*.war tomcat@192.168.59.177:/root/prod/apache-tomcat-9.0.102/webapps/webapp.war'
+                }
+            }
+        }
     }
 
     post {
         success {
-            echo 'Build succeeded!'
+            echo 'Build and Deployment succeeded!'
         }
         failure {
-            echo 'Build failed!'
+            echo 'Build or Deployment failed!'
         }
     }
 }
