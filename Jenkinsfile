@@ -25,10 +25,38 @@ pipeline {
             }
         }
 
+        stage('Verify SSH Key') {
+            steps {
+                sshagent(['tomcat']) {
+                    // Test SSH connection to the remote server
+                    sh '''
+                        echo "Testing SSH connection to tomcat@192.168.59.177..."
+                        ssh -o StrictHostKeyChecking=no -v tomcat@192.168.59.177 "echo SSH connection successful!"
+                    '''
+                }
+            }
+        }
+
         stage('Deploy-To-Tomcat') {
             steps {
-                sshagent(['tomcat']) { 
-                    sh 'scp -o StrictHostKeyChecking=no target/*.war tomcat@192.168.59.177:/tmp/prod/apache-tomcat-9.0.102/webapps/webapp.war'
+                sshagent(['tomcat']) {
+                    // Copy the WAR file to the remote server
+                    sh '''
+                        echo "Deploying WebApp.war to tomcat@192.168.59.177..."
+                        scp -o StrictHostKeyChecking=no -v target/*.war tomcat@192.168.59.177:/tmp/prod/apache-tomcat-9.0.102/webapps/webapp.war
+                    '''
+                }
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                sshagent(['tomcat']) {
+                    // Verify the file was copied successfully
+                    sh '''
+                        echo "Verifying deployment on tomcat@192.168.59.177..."
+                        ssh -o StrictHostKeyChecking=no tomcat@192.168.59.177 "ls -l /tmp/prod/apache-tomcat-9.0.102/webapps/webapp.war"
+                    '''
                 }
             }
         }
