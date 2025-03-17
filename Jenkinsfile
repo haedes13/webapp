@@ -19,6 +19,14 @@ pipeline {
             }
         }
 
+        stage('Check-Git-Secrets') { 
+            steps { 
+                sh 'rm -f trufflehog || true' // Remove previous scan results if they exist
+                sh 'docker run --rm gesellix/trufflehog --json https://github.com/haedes13/webapp.git > trufflehog'
+                sh 'cat trufflehog' // Display scan results
+            }
+        }
+
         stage('Build') {
             steps {
                 sh 'mvn clean package -X' // Added -X for debug output
