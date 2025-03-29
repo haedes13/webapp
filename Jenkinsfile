@@ -27,6 +27,16 @@ pipeline {
             }
         }
 
+        stage('Source Composition Analysis') {
+            steps {
+                sh 'rm owasp* || true' // Remove previous scan results if they exist
+                sh 'wget "https://raw.githubusercontent.com/haedes13/webapp/refs/heads/master/owasp-dependency-check.sh"'
+                sh 'chmod +x owasp-dependency-check.sh'
+                sh 'bash owasp-dependency-check.sh'
+                sh 'cat /var/lib/jenkins/OWASP-Dependency-Check/reports/dependency-check-report.xml' // Display scan results
+            }
+        }
+
         stage('Build') {
             steps {
                 sh 'mvn clean package -X' // Added -X for debug output
