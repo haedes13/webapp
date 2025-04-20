@@ -60,13 +60,13 @@ pipeline {
             }
         }
 
-        // ✅ DAST Scan with OWASP ZAP
+        // ✅ DAST Scan with OWASP ZAP using correct image
         stage('DAST') {
             steps {
                 sshagent(['zap']) {
                     sh '''
                     ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
-                      docker run -v /tmp:/zap/wrk/:rw -t owasp/zap2docker-stable zap-baseline.py \
+                      docker run -v /tmp:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
                       -t http://192.168.59.177:8080/webapp/ \
                       -r zap-report.html \
                       -J zap-report.json \
