@@ -37,7 +37,6 @@ pipeline {
             }
         }
 
-        // Added SAST stage here
         stage('SAST') {
             steps {
                 withSonarQubeEnv('sonar') {
@@ -49,7 +48,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'mvn clean package -X' // Added -X for debug output
+                sh 'mvn clean package -X'
             }
         }
 
@@ -57,6 +56,23 @@ pipeline {
             steps {
                 sshagent(['tomcat']) { 
                     sh 'scp -o StrictHostKeyChecking=no target/*.war tomcat@192.168.59.177:/home/tomcat/apache-tomcat-9.0.102/webapps/webapp.war'
+                }
+            }
+        }
+
+        // ✅ DAST Scan with OWASP ZAP
+        stage('DAST') {
+            steps {
+                sshagent(['zap']) {
+                    sh '''
+                    ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
+                      docker run -v /tmp:/zap/wrk/:rw -t owasp/zap2docker-stable zap-baseline.py \
+                      -t http://192.168.59.177:8080/webapp/ \
+                      -r zap-report.html \
+                      -J zap-report.json \
+                      -x zap-report.xml
+                    '
+                    '''
                 }
             }
         }
