@@ -64,7 +64,7 @@ pipeline {
             steps {
                 sh '''
                     echo "Running Nmap port scan on Tomcat server..."
-                    nmap -sS -T4 -p- 192.168.59.177 -oN portscan.txt
+                    nmap -sT -T4 -p- 192.168.59.177 -oN portscan.txt
 
                     echo "Formatting port scan output:"
                     grep '^PORT' -A 100 portscan.txt | awk '/open/{print $1, $2, $3}' > formatted-ports.txt
