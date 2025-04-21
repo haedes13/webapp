@@ -21,19 +21,19 @@ pipeline {
 
         stage('Check-Git-Secrets') { 
             steps { 
-                sh 'rm -f trufflehog || true' // Remove previous scan results if they exist
+                sh 'rm -f trufflehog || true'
                 sh 'docker run --rm gesellix/trufflehog --json https://github.com/haedes13/webapp.git > trufflehog'
-                sh 'cat trufflehog' // Display scan results
+                sh 'cat trufflehog'
             }
         }
 
         stage('Source Composition Analysis') {
             steps {
-                sh 'rm owasp* || true' // Remove previous scan results if they exist
+                sh 'rm owasp* || true'
                 sh 'wget "https://raw.githubusercontent.com/haedes13/webapp/refs/heads/master/owasp-dependency-check.sh"'
                 sh 'chmod +x owasp-dependency-check.sh'
                 sh 'bash owasp-dependency-check.sh'
-                sh 'cat /var/lib/jenkins/OWASP-Dependency-Check/reports/dependency-check-report.xml' // Display scan results
+                sh 'cat /var/lib/jenkins/OWASP-Dependency-Check/reports/dependency-check-report.xml'
             }
         }
 
@@ -60,7 +60,30 @@ pipeline {
             }
         }
 
-        // ✅ DAST Scan with OWASP ZAP using correct image
+        stage('Port Scanning') {
+            steps {
+                sh '''
+                    echo "Running Nmap port scan on Tomcat server..."
+                    nmap -sS -T4 -p- 192.168.59.177 -oN portscan.txt
+
+                    echo "Formatting port scan output:"
+                    grep '^PORT' -A 100 portscan.txt | awk '/open/{print $1, $2, $3}' > formatted-ports.txt
+                    cat formatted-ports.txt
+
+                    echo "Checking for unexpected open ports..."
+                    UNEXPECTED=$(awk '{print $1}' formatted-ports.txt | cut -d/ -f1 | grep -Ev '^(22|80|8080)$' || true)
+
+                    if [ ! -z "$UNEXPECTED" ]; then
+                      echo "❌ Unexpected open ports detected:"
+                      echo "$UNEXPECTED"
+                      exit 1
+                    else
+                      echo "✅ Only expected ports are open."
+                    fi
+                '''
+            }
+        }
+
         stage('DAST') {
             steps {
                 sshagent(['zap']) {
@@ -79,11 +102,14 @@ pipeline {
     }
 
     post {
+        always {
+            archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt', onlyIfSuccessful: false
+        }
         success {
-            echo 'Build and Deployment succeeded!'
+            echo '✅ Build and Deployment succeeded!'
         }
         failure {
-            echo 'Build or Deployment failed!'
+            echo '❌ Build or Deployment failed!'
         }
     }
 }
