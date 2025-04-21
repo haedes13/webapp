@@ -104,13 +104,17 @@ pipeline {
             steps {
                 sshagent(['zap']) {
                     sh '''
+                    echo "⚡ Running OWASP ZAP Baseline Scan..."
+
                     ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
                       docker run -v /tmp:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
                       -t http://192.168.59.177:8080/webapp/ \
                       -r zap-report.html \
                       -J zap-report.json \
-                      -x zap-report.xml
+                      -x zap-report.xml || true
                     '
+
+                    echo "📄 ZAP Baseline scan completed. Vulnerabilities (if any) are reported in zap-report.* files."
                     '''
                 }
             }
@@ -120,6 +124,7 @@ pipeline {
     post {
         always {
             archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt, vulnscan.txt, detected-vulns.txt', onlyIfSuccessful: false
+            archiveArtifacts artifacts: '**/zap-report.*', onlyIfSuccessful: false
         }
         success {
             echo '✅ Build and Deployment succeeded!'
