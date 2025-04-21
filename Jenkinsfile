@@ -114,7 +114,7 @@ pipeline {
                       -x zap-report.xml || true
                     '
 
-                    echo "📄 ZAP Baseline scan completed. Vulnerabilities (if any) are reported in zap-report.* files."
+                    
                     '''
                 }
             }
