@@ -60,17 +60,19 @@ pipeline {
             }
         }
 
-        stage('Port Scanning') {
+        stage('Port Scanning & Vuln Detection') {
             steps {
                 sh '''
-                    echo "Running Nmap port scan on Tomcat server..."
+                    echo "🔍 Running Nmap port scan and vulnerability detection on Tomcat server..."
+
+                    # Port scan
                     nmap -sT -T4 -p- 192.168.59.177 -oN portscan.txt
 
-                    echo "Formatting port scan output:"
+                    echo "📘 Formatting port scan output:"
                     grep '^PORT' -A 100 portscan.txt | awk '/open/{print $1, $2, $3}' > formatted-ports.txt
                     cat formatted-ports.txt
 
-                    echo "Checking for unexpected open ports..."
+                    echo "🧪 Checking for unexpected open ports..."
                     UNEXPECTED=$(awk '{print $1}' formatted-ports.txt | cut -d/ -f1 | grep -Ev '^(22|80|8080)$' || true)
 
                     if [ ! -z "$UNEXPECTED" ]; then
@@ -79,6 +81,20 @@ pipeline {
                       exit 1
                     else
                       echo "✅ Only expected ports are open."
+                    fi
+
+                    echo "🛡️ Running Nmap vulnerability scan (no root required)..."
+                    nmap -sV --script=vuln -T4 -p- 192.168.59.177 -oN vulnscan.txt
+
+                    echo "📖 Checking for known vulnerabilities..."
+                    grep -i "VULNERABLE" vulnscan.txt > detected-vulns.txt || true
+
+                    if [ -s detected-vulns.txt ]; then
+                      echo "❌ Vulnerabilities found:"
+                      cat detected-vulns.txt
+                      exit 1
+                    else
+                      echo "✅ No known vulnerabilities found."
                     fi
                 '''
             }
@@ -103,7 +119,7 @@ pipeline {
 
     post {
         always {
-            archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt', onlyIfSuccessful: false
+            archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt, vulnscan.txt, detected-vulns.txt', onlyIfSuccessful: false
         }
         success {
             echo '✅ Build and Deployment succeeded!'
