@@ -106,6 +106,7 @@ pipeline {
                     sh '''
                     echo "⚡ Running OWASP ZAP Baseline Scan..."
 
+                    # Run ZAP inside remote Docker
                     ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
                       docker run -v /tmp:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
                       -t http://192.168.59.177:8080/webapp/ \
@@ -114,7 +115,8 @@ pipeline {
                       -x zap-report.xml || true
                     '
 
-                    
+                    echo "📥 Copying ZAP reports from remote to Jenkins workspace..."
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/zap-report.* .
                     '''
                 }
             }
@@ -124,7 +126,7 @@ pipeline {
     post {
         always {
             archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt, vulnscan.txt, detected-vulns.txt', onlyIfSuccessful: false
-            archiveArtifacts artifacts: '**/zap-report.*', onlyIfSuccessful: false
+            archiveArtifacts artifacts: 'zap-report.*', onlyIfSuccessful: false
         }
         success {
             echo '✅ Build and Deployment succeeded!'
