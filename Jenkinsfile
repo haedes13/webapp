@@ -65,7 +65,6 @@ pipeline {
                 sh '''
                     echo "🔍 Running Nmap port scan and vulnerability detection on Tomcat server..."
 
-                    # Port scan
                     nmap -sT -T4 -p- 192.168.59.177 -oN portscan.txt
 
                     echo "📘 Formatting port scan output:"
@@ -106,7 +105,6 @@ pipeline {
                     sh '''
                     echo "⚡ Running OWASP ZAP Baseline Scan..."
 
-                    # Run ZAP inside remote Docker
                     ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
                       docker run -v /tmp:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
                       -t http://192.168.59.177:8080/webapp/ \
@@ -121,12 +119,30 @@ pipeline {
                 }
             }
         }
+
+        stage('Nikto Scan') {
+            steps {
+                sshagent(['zap']) {
+                    sh '''
+                    echo "🔍 Running Nikto Scan on Tomcat web application..."
+
+                    ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
+                      nikto -host http://192.168.59.177:8080/webapp/ -output /tmp/nikto-report.txt || true
+                    '
+
+                    echo "📥 Copying Nikto report from remote to Jenkins workspace..."
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/nikto-report.txt .
+                    '''
+                }
+            }
+        }
     }
 
     post {
         always {
             archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt, vulnscan.txt, detected-vulns.txt', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'zap-report.*', onlyIfSuccessful: false
+            archiveArtifacts artifacts: 'nikto-report.txt', onlyIfSuccessful: false
         }
         success {
             echo '✅ Build and Deployment succeeded!'
