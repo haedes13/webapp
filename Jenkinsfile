@@ -136,13 +136,13 @@ pipeline {
                 }
             }
         }
+    }
 
     post {
         always {
             archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt, vulnscan.txt, detected-vulns.txt', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'zap-report.*', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'nikto-report.txt', onlyIfSuccessful: false
-            archiveArtifacts artifacts: 'fuzz-report.*', onlyIfSuccessful: false
         }
         success {
             echo '✅ Build and Deployment succeeded!'
