@@ -136,6 +136,28 @@ pipeline {
                 }
             }
         }
+
+        // Fuzzing Stage
+        stage('Fuzzing') {
+            steps {
+                sshagent(['zap']) {
+                    sh '''
+                    echo "🔍 Running OWASP ZAP Fuzzing..."
+
+                    ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
+                      docker run -v /tmp:/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-fuzz.py \
+                      -t http://192.168.59.177:8080/webapp/ \
+                      -r fuzz-report.html \
+                      -J fuzz-report.json \
+                      -x fuzz-report.xml || true
+                    '
+
+                    echo "📥 Copying Fuzzing reports from remote to Jenkins workspace..."
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/fuzz-report.* .
+                    '''
+                }
+            }
+        }
     }
 
     post {
@@ -143,6 +165,7 @@ pipeline {
             archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt, vulnscan.txt, detected-vulns.txt', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'zap-report.*', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'nikto-report.txt', onlyIfSuccessful: false
+            archiveArtifacts artifacts: 'fuzz-report.*', onlyIfSuccessful: false
         }
         success {
             echo '✅ Build and Deployment succeeded!'
