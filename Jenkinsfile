@@ -141,12 +141,14 @@ pipeline {
                     sh '''
                     echo "🔒 Running CheckSSL on Tomcat server..."
 
+                    # Ensure checkssl output is written to a file in a known location
                     ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
-                      checkssl 192.168.59.177 || true
-                    ' > checkssl-report.txt
+                      checkssl 192.168.59.177 > /tmp/checkssl-report.txt || true
+                    '
 
                     echo "📥 Copying CheckSSL report from remote to Jenkins workspace..."
-                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:checkssl-report.txt . || true
+                    # Correct the SCP command to match the new file path
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/checkssl-report.txt . || true
                     '''
                 }
             }
