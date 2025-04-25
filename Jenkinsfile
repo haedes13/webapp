@@ -19,8 +19,8 @@ pipeline {
             }
         }
 
-        stage('Check-Git-Secrets') { 
-            steps { 
+        stage('Check-Git-Secrets') {
+            steps {
                 sh 'rm -f trufflehog || true'
                 sh 'docker run --rm gesellix/trufflehog --json https://github.com/haedes13/webapp.git > trufflehog'
                 sh 'cat trufflehog'
@@ -54,7 +54,7 @@ pipeline {
 
         stage('Deploy-To-Tomcat') {
             steps {
-                sshagent(['tomcat']) { 
+                sshagent(['tomcat']) {
                     sh 'scp -o StrictHostKeyChecking=no target/*.war tomcat@192.168.59.177:/home/tomcat/apache-tomcat-9.0.102/webapps/webapp.war'
                 }
             }
@@ -72,7 +72,7 @@ pipeline {
                     cat formatted-ports.txt
 
                     echo "🧪 Checking for unexpected open ports..."
-                    UNEXPECTED=$(awk '{print $1}' formatted-ports.txt | cut -d/ -f1 | grep -Ev '^(22|80|8080)$' || true)
+                    UNEXPECTED=$(awk '{print $1}' formatted-ports.txt | cut -d/ -f1 | grep -Ev '^(22|80|8080|8443)$' || true)
 
                     if [ ! -z "$UNEXPECTED" ]; then
                       echo "❌ Unexpected open ports detected:"
@@ -141,15 +141,14 @@ pipeline {
             steps {
                 sshagent(['zap']) {
                     sh '''
-                    echo "🔒 Running SSL/TLS Configuration Checks using testssl.sh..."
+                    echo "🔐 Running SSL scan on Tomcat server (port 8443)..."
 
                     ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
-                      cd /home/owaspzap/testssl
-                      ./testssl.sh --warnings batch --quiet --color 0 http://192.168.59.177:8080 > /tmp/ssl-report.txt || true
+                      sslscan 192.168.59.177:8443 > /tmp/sslscan-report.txt || true
                     '
 
-                    echo "📥 Copying SSL report from remote to Jenkins workspace..."
-                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/ssl-report.txt .
+                    echo "📥 Copying SSL scan report from DAST server to Jenkins workspace..."
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/sslscan-report.txt .
                     '''
                 }
             }
@@ -161,7 +160,7 @@ pipeline {
             archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt, vulnscan.txt, detected-vulns.txt', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'zap-report.*', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'nikto-report.txt', onlyIfSuccessful: false
-            archiveArtifacts artifacts: 'ssl-report.txt', onlyIfSuccessful: false
+            archiveArtifacts artifacts: 'sslscan-report.txt', onlyIfSuccessful: false
         }
         success {
             echo '✅ Build and Deployment succeeded!'
