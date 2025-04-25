@@ -134,6 +134,23 @@ pipeline {
                 }
             }
         }
+
+        stage('SSL Certificate Check') {
+            steps {
+                sshagent(['zap']) {
+                    sh '''
+                    echo "🔒 Running CheckSSL on Tomcat server..."
+
+                    ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
+                      checkssl 192.168.59.177 || true
+                    ' > checkssl-report.txt
+
+                    echo "📥 Copying CheckSSL report from remote to Jenkins workspace..."
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:checkssl-report.txt . || true
+                    '''
+                }
+            }
+        }
     }
 
     post {
@@ -141,6 +158,7 @@ pipeline {
             archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt, unexpected-ports.txt, vulnscan.txt, detected-vulns.txt', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'zap-report.*', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'nikto-report.txt', onlyIfSuccessful: false
+            archiveArtifacts artifacts: 'checkssl-report.txt', onlyIfSuccessful: false
         }
         success {
             echo '✅ Build, Deployment, and Security Scans completed successfully (with reports logged).'
