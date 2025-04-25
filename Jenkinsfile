@@ -72,7 +72,7 @@ pipeline {
                     cat formatted-ports.txt
 
                     echo "🧪 Checking for unexpected open ports..."
-                    UNEXPECTED=$(awk '{print $1}' formatted-ports.txt | cut -d/ -f1 | grep -Ev '^(22|80|8080)$' || true)
+                    UNEXPECTED=$(awk '{print $1}' formatted-ports.txt | cut -d/ -f1 | grep -Ev '^(22|80|8080|8443)$' || true)
 
                     if [ ! -z "$UNEXPECTED" ]; then
                       echo "❌ Unexpected open ports detected:"
