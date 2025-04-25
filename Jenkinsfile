@@ -23,7 +23,7 @@ pipeline {
             steps {
                 sh 'rm -f trufflehog || true'
                 sh 'docker run --rm gesellix/trufflehog --json https://github.com/haedes13/webapp.git > trufflehog'
-                sh 'cat trufflehog || true'
+                sh 'cat trufflehog'
             }
         }
 
@@ -33,7 +33,7 @@ pipeline {
                 sh 'wget "https://raw.githubusercontent.com/haedes13/webapp/refs/heads/master/owasp-dependency-check.sh"'
                 sh 'chmod +x owasp-dependency-check.sh'
                 sh 'bash owasp-dependency-check.sh'
-                sh 'cat /var/lib/jenkins/OWASP-Dependency-Check/reports/dependency-check-report.xml || true'
+                sh 'cat /var/lib/jenkins/OWASP-Dependency-Check/reports/dependency-check-report.xml'
             }
         }
 
@@ -41,7 +41,7 @@ pipeline {
             steps {
                 withSonarQubeEnv('sonar') {
                     sh 'mvn sonar:sonar'
-                    sh 'cat target/sonar/report-task.txt || true'
+                    sh 'cat target/sonar/report-task.txt'
                 }
             }
         }
@@ -77,6 +77,7 @@ pipeline {
                     if [ ! -z "$UNEXPECTED" ]; then
                       echo "❌ Unexpected open ports detected:"
                       echo "$UNEXPECTED"
+                      exit 1
                     else
                       echo "✅ Only expected ports are open."
                     fi
@@ -90,6 +91,7 @@ pipeline {
                     if [ -s detected-vulns.txt ]; then
                       echo "❌ Vulnerabilities found:"
                       cat detected-vulns.txt
+                      exit 1
                     else
                       echo "✅ No known vulnerabilities found."
                     fi
@@ -112,7 +114,7 @@ pipeline {
                     '
 
                     echo "📥 Copying ZAP reports from remote to Jenkins workspace..."
-                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/zap-report.* .
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/zap-report.* . 
                     '''
                 }
             }
@@ -135,23 +137,21 @@ pipeline {
             }
         }
 
-        stage('SSL Checks') {
+        stage('SSL Checks (SSLyze)') {
             steps {
                 sshagent(['zap']) {
                     sh '''
-                    echo "🔐 Running SSL scan on Tomcat server (port 8443)..."
+                    echo "🔐 Running SSL scan with SSLyze..."
 
                     ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
-                      sslscan 192.168.59.177:8443 > /tmp/sslscan-report.txt || true
+                      sslyze --regular --json_out /tmp/sslyze-report.json 192.168.59.177:8443 || true
                     '
 
-                    echo "📥 Copying SSL scan report from DAST server to Jenkins workspace..."
-                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/sslscan-report.txt .
+                    echo "📥 Copying SSLyze scan report from remote to Jenkins workspace..."
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/sslyze-report.json .
 
-                    echo "📖 Displaying SSL scan report:"
-                    echo "------------------------------------------------------------"
-                    cat sslscan-report.txt || echo "⚠️ SSL scan report not found or empty."
-                    echo "------------------------------------------------------------"
+                    echo "📖 Displaying SSL scan results..."
+                    cat sslyze-report.json || echo "⚠️ SSL scan report not found or empty."
                     '''
                 }
             }
@@ -163,7 +163,7 @@ pipeline {
             archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt, vulnscan.txt, detected-vulns.txt', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'zap-report.*', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'nikto-report.txt', onlyIfSuccessful: false
-            archiveArtifacts artifacts: 'sslscan-report.txt', onlyIfSuccessful: false
+            archiveArtifacts artifacts: 'sslyze-report.json', onlyIfSuccessful: false
         }
         success {
             echo '✅ Build and Deployment succeeded!'
