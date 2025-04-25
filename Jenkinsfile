@@ -136,6 +136,24 @@ pipeline {
                 }
             }
         }
+
+        stage('SSL Checks') {
+            steps {
+                sshagent(['zap']) {
+                    sh '''
+                    echo "🔒 Running SSL/TLS Configuration Checks using testssl.sh..."
+
+                    ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
+                      cd /home/owaspzap/testssl
+                      ./testssl.sh --warnings batch --quiet --color 0 http://192.168.59.177:8080 > /tmp/ssl-report.txt || true
+                    '
+
+                    echo "📥 Copying SSL report from remote to Jenkins workspace..."
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/ssl-report.txt .
+                    '''
+                }
+            }
+        }
     }
 
     post {
@@ -143,6 +161,7 @@ pipeline {
             archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt, vulnscan.txt, detected-vulns.txt', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'zap-report.*', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'nikto-report.txt', onlyIfSuccessful: false
+            archiveArtifacts artifacts: 'ssl-report.txt', onlyIfSuccessful: false
         }
         success {
             echo '✅ Build and Deployment succeeded!'
