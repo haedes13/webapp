@@ -21,36 +21,27 @@ pipeline {
 
         stage('Check-Git-Secrets') {
             steps {
-                sh '''
-                echo "🔐 Checking for secrets with TruffleHog..."
-                rm -f trufflehog || true
-                docker run --rm gesellix/trufflehog --json https://github.com/haedes13/webapp.git > trufflehog || true
-                cat trufflehog || true
-                '''
+                sh 'rm -f trufflehog || true'
+                sh 'docker run --rm gesellix/trufflehog --json https://github.com/haedes13/webapp.git > trufflehog'
+                sh 'cat trufflehog || true'
             }
         }
 
         stage('Source Composition Analysis') {
             steps {
-                sh '''
-                echo "📦 Running OWASP Dependency Check..."
-                rm owasp* || true
-                wget "https://raw.githubusercontent.com/haedes13/webapp/refs/heads/master/owasp-dependency-check.sh" || true
-                chmod +x owasp-dependency-check.sh || true
-                bash owasp-dependency-check.sh || true
-                cat /var/lib/jenkins/OWASP-Dependency-Check/reports/dependency-check-report.xml || true
-                '''
+                sh 'rm owasp* || true'
+                sh 'wget "https://raw.githubusercontent.com/haedes13/webapp/refs/heads/master/owasp-dependency-check.sh"'
+                sh 'chmod +x owasp-dependency-check.sh'
+                sh 'bash owasp-dependency-check.sh'
+                sh 'cat /var/lib/jenkins/OWASP-Dependency-Check/reports/dependency-check-report.xml || true'
             }
         }
 
         stage('SAST') {
             steps {
                 withSonarQubeEnv('sonar') {
-                    sh '''
-                    echo "🔍 Running SonarQube scan..."
-                    mvn sonar:sonar || true
-                    cat target/sonar/report-task.txt || true
-                    '''
+                    sh 'mvn sonar:sonar'
+                    sh 'cat target/sonar/report-task.txt || true'
                 }
             }
         }
@@ -72,36 +63,36 @@ pipeline {
         stage('Port Scanning & Vuln Detection') {
             steps {
                 sh '''
-                echo "🔍 Running Nmap port scan and vulnerability detection..."
+                    echo "🔍 Running Nmap port scan and vulnerability detection on Tomcat server..."
 
-                nmap -sT -T4 -p- 192.168.59.177 -oN portscan.txt || true
+                    nmap -sT -T4 -p- 192.168.59.177 -oN portscan.txt
 
-                echo "📘 Formatting port scan output:"
-                grep '^PORT' -A 100 portscan.txt | awk '/open/{print $1, $2, $3}' > formatted-ports.txt || true
-                cat formatted-ports.txt || true
+                    echo "📘 Formatting port scan output:"
+                    grep '^PORT' -A 100 portscan.txt | awk '/open/{print $1, $2, $3}' > formatted-ports.txt
+                    cat formatted-ports.txt
 
-                echo "🧪 Checking for unexpected open ports..."
-                UNEXPECTED=$(awk '{print $1}' formatted-ports.txt | cut -d/ -f1 | grep -Ev '^(22|80|8080|8443)$' || true)
+                    echo "🧪 Checking for unexpected open ports..."
+                    UNEXPECTED=$(awk '{print $1}' formatted-ports.txt | cut -d/ -f1 | grep -Ev '^(22|80|8080|8443)$' || true)
 
-                if [ ! -z "$UNEXPECTED" ]; then
-                  echo "⚠️ Unexpected open ports detected:"
-                  echo "$UNEXPECTED"
-                else
-                  echo "✅ Only expected ports are open."
-                fi
+                    if [ ! -z "$UNEXPECTED" ]; then
+                      echo "❌ Unexpected open ports detected:"
+                      echo "$UNEXPECTED"
+                    else
+                      echo "✅ Only expected ports are open."
+                    fi
 
-                echo "🛡️ Running Nmap vulnerability scan (non-root)..."
-                nmap -sV --script=vuln -T4 -p- 192.168.59.177 -oN vulnscan.txt || true
+                    echo "🛡️ Running Nmap vulnerability scan (no root required)..."
+                    nmap -sV --script=vuln -T4 -p- 192.168.59.177 -oN vulnscan.txt
 
-                echo "📖 Extracting vulnerability summary..."
-                grep -i "VULNERABLE" vulnscan.txt > detected-vulns.txt || true
+                    echo "📖 Checking for known vulnerabilities..."
+                    grep -i "VULNERABLE" vulnscan.txt > detected-vulns.txt || true
 
-                if [ -s detected-vulns.txt ]; then
-                  echo "⚠️ Vulnerabilities found:"
-                  cat detected-vulns.txt
-                else
-                  echo "✅ No known vulnerabilities found in scan."
-                fi
+                    if [ -s detected-vulns.txt ]; then
+                      echo "❌ Vulnerabilities found:"
+                      cat detected-vulns.txt
+                    else
+                      echo "✅ No known vulnerabilities found."
+                    fi
                 '''
             }
         }
@@ -120,8 +111,8 @@ pipeline {
                       -x zap-report.xml || true
                     '
 
-                    echo "📥 Copying ZAP reports from remote..."
-                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/zap-report.* . || true
+                    echo "📥 Copying ZAP reports from remote to Jenkins workspace..."
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/zap-report.* .
                     '''
                 }
             }
@@ -131,14 +122,14 @@ pipeline {
             steps {
                 sshagent(['zap']) {
                     sh '''
-                    echo "🔍 Running Nikto Scan..."
+                    echo "🔍 Running Nikto Scan on Tomcat web application..."
 
                     ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
                       nikto -host http://192.168.59.177:8080/webapp/ -output /tmp/nikto-report.txt || true
                     '
 
-                    echo "📥 Copying Nikto report..."
-                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/nikto-report.txt . || true
+                    echo "📥 Copying Nikto report from remote to Jenkins workspace..."
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/nikto-report.txt .
                     '''
                 }
             }
@@ -148,14 +139,19 @@ pipeline {
             steps {
                 sshagent(['zap']) {
                     sh '''
-                    echo "🔐 Running SSL scan on port 8443..."
+                    echo "🔐 Running SSL scan on Tomcat server (port 8443)..."
 
                     ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
                       sslscan 192.168.59.177:8443 > /tmp/sslscan-report.txt || true
                     '
 
-                    echo "📥 Copying SSL scan report..."
-                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/sslscan-report.txt . || true
+                    echo "📥 Copying SSL scan report from DAST server to Jenkins workspace..."
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/sslscan-report.txt .
+
+                    echo "📖 Displaying SSL scan report:"
+                    echo "------------------------------------------------------------"
+                    cat sslscan-report.txt || echo "⚠️ SSL scan report not found or empty."
+                    echo "------------------------------------------------------------"
                     '''
                 }
             }
@@ -170,7 +166,7 @@ pipeline {
             archiveArtifacts artifacts: 'sslscan-report.txt', onlyIfSuccessful: false
         }
         success {
-            echo '✅ Build and Deployment completed successfully!'
+            echo '✅ Build and Deployment succeeded!'
         }
         failure {
             echo '❌ Build or Deployment failed!'
