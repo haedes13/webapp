@@ -143,7 +143,7 @@ pipeline {
 
                     # Ensure checkssl output is written to a file in a known location
                     ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
-                      checkssl 192.168.59.177 > /tmp/checkssl-report.txt || true
+                      checkssl https://192.168.59.177:8443/webapp > /tmp/checkssl-report.txt || true
                     '
 
                     echo "📥 Copying CheckSSL report from remote to Jenkins workspace..."
