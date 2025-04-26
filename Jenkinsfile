@@ -137,20 +137,13 @@ pipeline {
 
         stage('SSL Certificate Check') {
             steps {
-                sshagent(['zap']) {
-                    sh '''
-                    echo "🔒 Running CheckSSL on Tomcat server..."
+                sh '''
+                    echo "🔒 Running SSLyze scan on Tomcat server..."
 
-                    # Ensure checkssl output is written to a file in a known location
-                    ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
-                      checkssl https://192.168.59.177:8443/webapp > /tmp/checkssl-report.txt || true
-                    '
+                    docker run --rm nablac0d3/sslyze:6.1.0 192.168.59.177:8443 | tee sslyze-report.txt || true
 
-                    echo "📥 Copying CheckSSL report from remote to Jenkins workspace..."
-                    # Correct the SCP command to match the new file path
-                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/checkssl-report.txt . || true
-                    '''
-                }
+                    echo "📄 SSLyze scan output saved to sslyze-report.txt"
+                '''
             }
         }
     }
@@ -160,7 +153,7 @@ pipeline {
             archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt, unexpected-ports.txt, vulnscan.txt, detected-vulns.txt', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'zap-report.*', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'nikto-report.txt', onlyIfSuccessful: false
-            archiveArtifacts artifacts: 'checkssl-report.txt', onlyIfSuccessful: false
+            archiveArtifacts artifacts: 'sslyze-report.txt', onlyIfSuccessful: false
         }
         success {
             echo '✅ Build, Deployment, and Security Scans completed successfully (with reports logged).'
