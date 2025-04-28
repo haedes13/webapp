@@ -124,7 +124,7 @@ pipeline {
                     sh '''
                     echo "🔍 Running Nikto Scan on Tomcat web application..."
 
-                    ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
+                    ssh -o StrictHostKeyChecking=no owaspzap@192.16859.180 '
                       nikto -host http://192.168.59.177:8080/webapp/ -output /tmp/nikto-report.txt || true
                     '
 
@@ -143,6 +143,20 @@ pipeline {
                     docker run --rm nablac0d3/sslyze:6.1.0 192.168.59.177:8443 | tee sslyze-report.txt || true
 
                     echo "📄 SSLyze scan output saved to sslyze-report.txt"
+                '''
+            }
+        }
+
+        // New stage for uploading reports to Defect Dojo
+        stage('Upload Reports to DefectDojo') {
+            steps {
+                sh '''
+                    source /var/lib/jenkins/dojoenv/bin/activate
+                    python3 upload_to_defectdojo.py zap-report.json ZAP Scan
+                    python3 upload_to_defectdojo.py dependency-check-report.xml Dependency-Check Scan
+                    python3 upload_to_defectdojo.py nikto-report.txt Nikto Scan
+                    python3 upload_to_defectdojo.py sslyze-report.txt SSLyze Scan
+                    deactivate
                 '''
             }
         }
