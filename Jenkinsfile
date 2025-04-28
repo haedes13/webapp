@@ -5,6 +5,13 @@ pipeline {
         maven 'Maven'
     }
 
+    environment {
+        DEFECTDOJO_URL = 'http://192.168.59.181:8080'  // DefectDojo URL
+        DEFECTDOJO_API_KEY = 'd300a3c23d9964d45e5841562d659a259694a4e9'           // DefectDojo API Key
+        DEFECTDOJO_PRODUCT_ID = '1'                   // Replace with your product ID
+        DEFECTDOJO_ENGAGEMENT_ID = '3'                // Replace with your engagement ID
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -151,12 +158,45 @@ pipeline {
         stage('Upload Reports to DefectDojo') {
             steps {
                 sh '''
-                    . /var/lib/jenkins/dojoenv/bin/activate
-                    python3 upload_to_defectdojo.py zap-report.json ZAP Scan
-                    python3 upload_to_defectdojo.py dependency-check-report.xml Dependency-Check Scan
-                    python3 upload_to_defectdojo.py nikto-report.txt Nikto Scan
-                    python3 upload_to_defectdojo.py sslyze-report.txt SSLyze Scan
-                    deactivate
+                    echo "Uploading ZAP scan report to DefectDojo..."
+                    curl -X POST "${DEFECTDOJO_URL}/api/v2/import-scan/" \
+                    -H "Authorization: Bearer ${DEFECTDOJO_API_KEY}" \
+                    -F "file=@zap-report.json" \
+                    -F "scan_type=ZAP Scan" \
+                    -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
+                    -F "active=true" \
+                    -F "verified=true" \
+                    -F "minimum_severity=Low"
+
+                    echo "Uploading Dependency-Check report to DefectDojo..."
+                    curl -X POST "${DEFECTDOJO_URL}/api/v2/import-scan/" \
+                    -H "Authorization: Bearer ${DEFECTDOJO_API_KEY}" \
+                    -F "file=@dependency-check-report.xml" \
+                    -F "scan_type=Dependency-Check Scan" \
+                    -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
+                    -F "active=true" \
+                    -F "verified=true" \
+                    -F "minimum_severity=Low"
+
+                    echo "Uploading Nikto scan report to DefectDojo..."
+                    curl -X POST "${DEFECTDOJO_URL}/api/v2/import-scan/" \
+                    -H "Authorization: Bearer ${DEFECTDOJO_API_KEY}" \
+                    -F "file=@nikto-report.txt" \
+                    -F "scan_type=Nikto Scan" \
+                    -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
+                    -F "active=true" \
+                    -F "verified=true" \
+                    -F "minimum_severity=Low"
+
+                    echo "Uploading SSLyze scan report to DefectDojo..."
+                    curl -X POST "${DEFECTDOJO_URL}/api/v2/import-scan/" \
+                    -H "Authorization: Bearer ${DEFECTDOJO_API_KEY}" \
+                    -F "file=@sslyze-report.txt" \
+                    -F "scan_type=SSLyze Scan" \
+                    -F "engagement=${DEFECTDOJO_ENGAGEMENT_ID}" \
+                    -F "active=true" \
+                    -F "verified=true" \
+                    -F "minimum_severity=Low"
                 '''
             }
         }
