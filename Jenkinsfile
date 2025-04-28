@@ -124,7 +124,7 @@ pipeline {
                     sh '''
                     echo "🔍 Running Nikto Scan on Tomcat web application..."
 
-                    ssh -o StrictHostKeyChecking=no owaspzap@192.16859.180 '
+                    ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
                       nikto -host http://192.168.59.177:8080/webapp/ -output /tmp/nikto-report.txt || true
                     '
 
