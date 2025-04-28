@@ -22,8 +22,8 @@ pipeline {
         stage('Check-Git-Secrets') { 
             steps { 
                 sh 'rm -f trufflehog || true'
-                sh 'docker run --rm gesellix/trufflehog --json https://github.com/haedes13/webapp.git > trufflehog || true'
-                sh 'cat trufflehog || true'
+                sh 'docker run --rm gesellix/trufflehog --json https://github.com/haedes13/webapp.git > trufflehog.json || true'
+                sh 'cat trufflehog.json || true'
             }
         }
 
@@ -33,7 +33,7 @@ pipeline {
                 sh 'wget "https://raw.githubusercontent.com/haedes13/webapp/refs/heads/master/owasp-dependency-check.sh" || true'
                 sh 'chmod +x owasp-dependency-check.sh || true'
                 sh 'bash owasp-dependency-check.sh || true'
-                sh 'cat /var/lib/jenkins/OWASP-Dependency-Check/reports/dependency-check-report.xml || true'
+                sh 'cat /var/lib/jenkins/OWASP-Dependency-Check/reports/dependency-check-report.json || true'
             }
         }
 
@@ -65,11 +65,10 @@ pipeline {
                 sh '''
                     echo "🔍 Running Nmap port scan and vulnerability detection on Tomcat server..."
 
-                    nmap -sT -T4 -p- 192.168.59.177 -oN portscan.txt || true
-
-                    echo "📘 Formatting port scan output:"
-                    grep '^PORT' -A 100 portscan.txt | awk '/open/{print $1, $2, $3}' > formatted-ports.txt || true
-                    cat formatted-ports.txt || true
+                    nmap -sT -T4 -p- 192.168.59.177 -oX portscan.xml || true
+                    echo "📘 Formatting port scan output to JSON..."
+                    python3 -c 'import xml.etree.ElementTree as ET, json; tree = ET.parse("portscan.xml"); root = tree.getroot(); nmap_json = {"scan": {} }; nmap_json["scan"]["192.168.59.177"] = {"host": {"address": "192.168.59.177", "ports": []}}; for port in root.findall(".//port"): nmap_json["scan"]["192.168.59.177"]["host"]["ports"].append({"port": port.attrib["portid"], "state": port.find("state").attrib["state"]}); print(json.dumps(nmap_json))' > portscan.json || true
+                    cat portscan.json || true
 
                     echo "🧪 Checking for unexpected open ports..."
                     awk '{print $1}' formatted-ports.txt | cut -d/ -f1 | grep -Ev '^(22|80|8080|8443)$' > unexpected-ports.txt || true
@@ -82,17 +81,9 @@ pipeline {
                     fi
 
                     echo "🛡️ Running Nmap vulnerability scan..."
-                    nmap -sV --script=vuln -T4 -p- 192.168.59.177 -oN vulnscan.txt || true
-
-                    echo "📖 Checking for known vulnerabilities..."
-                    grep -i "VULNERABLE" vulnscan.txt > detected-vulns.txt || true
-
-                    if [ -s detected-vulns.txt ]; then
-                      echo "❌ Vulnerabilities found:"
-                      cat detected-vulns.txt
-                    else
-                      echo "✅ No known vulnerabilities found."
-                    fi
+                    nmap -sV --script=vuln -T4 -p- 192.168.59.177 -oX vulnscan.xml || true
+                    python3 -c 'import xml.etree.ElementTree as ET, json; tree = ET.parse("vulnscan.xml"); root = tree.getroot(); vuln_json = {"scan": {} }; vuln_json["scan"]["192.168.59.177"] = {"host": {"address": "192.168.59.177", "vulnerabilities": []}}; for vuln in root.findall(".//script[@id='vuln']"): vuln_json["scan"]["192.168.59.177"]["host"]["vulnerabilities"].append({"vuln_id": vuln.attrib["id"], "output": vuln.find("output").text}); print(json.dumps(vuln_json))' > vulnscan.json || true
+                    cat vulnscan.json || true
                 '''
             }
         }
@@ -112,7 +103,7 @@ pipeline {
                     '
 
                     echo "📥 Copying ZAP reports from remote to Jenkins workspace..."
-                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/zap-report.* . || true
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/zap-report.json . || true
                     '''
                 }
             }
@@ -125,11 +116,11 @@ pipeline {
                     echo "🔍 Running Nikto Scan on Tomcat web application..."
 
                     ssh -o StrictHostKeyChecking=no owaspzap@192.168.59.180 '
-                      nikto -host http://192.168.59.177:8080/webapp/ -output /tmp/nikto-report.txt || true
+                      nikto -host http://192.168.59.177:8080/webapp/ -output /tmp/nikto-report.json -Format json || true
                     '
 
                     echo "📥 Copying Nikto report from remote to Jenkins workspace..."
-                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/nikto-report.txt . || true
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/nikto-report.json . || true
                     '''
                 }
             }
@@ -140,9 +131,9 @@ pipeline {
                 sh '''
                     echo "🔒 Running SSLyze scan on Tomcat server..."
 
-                    docker run --rm nablac0d3/sslyze:6.1.0 192.168.59.177:8443 | tee sslyze-report.txt || true
+                    docker run --rm nablac0d3/sslyze:6.1.0 192.168.59.177:8443 | tee sslyze-report.json || true
 
-                    echo "📄 SSLyze scan output saved to sslyze-report.txt"
+                    echo "📄 SSLyze scan output saved to sslyze-report.json"
                 '''
             }
         }
@@ -150,10 +141,7 @@ pipeline {
 
     post {
         always {
-            archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt, unexpected-ports.txt, vulnscan.txt, detected-vulns.txt', onlyIfSuccessful: false
-            archiveArtifacts artifacts: 'zap-report.*', onlyIfSuccessful: false
-            archiveArtifacts artifacts: 'nikto-report.txt', onlyIfSuccessful: false
-            archiveArtifacts artifacts: 'sslyze-report.txt', onlyIfSuccessful: false
+            archiveArtifacts artifacts: 'portscan.json, vulnscan.json, zap-report.json, nikto-report.json, sslyze-report.json', onlyIfSuccessful: false
         }
         success {
             echo '✅ Build, Deployment, and Security Scans completed successfully (with reports logged).'
