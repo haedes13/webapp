@@ -151,7 +151,7 @@ pipeline {
         stage('Upload Reports to DefectDojo') {
             steps {
                 sh '''
-                    source /var/lib/jenkins/dojoenv/bin/activate
+                    . /var/lib/jenkins/dojoenv/bin/activate
                     python3 upload_to_defectdojo.py zap-report.json ZAP Scan
                     python3 upload_to_defectdojo.py dependency-check-report.xml Dependency-Check Scan
                     python3 upload_to_defectdojo.py nikto-report.txt Nikto Scan
