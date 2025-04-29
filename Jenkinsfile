@@ -150,7 +150,7 @@ pipeline {
         stage('Upload to DefectDojo') {
             steps {
                 defectDojoPublisher(
-                    artifact: 'zap-report.json',
+                    artifact: 'zap-report.xml',
                     autoCreateEngagements: false,
                     autoCreateProducts: false,
                     branchTag: '',
