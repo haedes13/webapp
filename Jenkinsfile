@@ -5,6 +5,11 @@ pipeline {
         maven 'Maven'
     }
 
+    environment {
+        DEFECTDOJO_URL = 'http://192.168.59.181:8080'
+        DEFECTDOJO_CREDENTIALS = 'd300a3c23d9964d45e5841562d659a259694a4e9' // Jenkins Credentials ID for the API token
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -97,7 +102,7 @@ pipeline {
             }
         }
 
-        stage('DAST') {
+        stage('DAST - ZAP Scan') {
             steps {
                 sshagent(['zap']) {
                     sh '''
@@ -144,6 +149,25 @@ pipeline {
 
                     echo "📄 SSLyze scan output saved to sslyze-report.txt"
                 '''
+            }
+        }
+
+        stage('Upload ZAP Report to DefectDojo') {
+            steps {
+                defectDojoPublisher(
+                    artifact: 'zap-report.json',
+                    autoCreateEngagements: false,
+                    autoCreateProducts: false,
+                    branchTag: '',
+                    commitHash: '',
+                    defectDojoCredentialsId: "${env.DEFECTDOJO_CREDENTIALS}",
+                    defectDojoUrl: "${env.DEFECTDOJO_URL}",
+                    engagementId: '3',
+                    engagementName: 'WebApp CI/CD Scans',
+                    productId: '1',
+                    scanType: 'ZAP Scan',
+                    sourceCodeUrl: ''
+                )
             }
         }
     }
