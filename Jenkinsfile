@@ -5,11 +5,6 @@ pipeline {
         maven 'Maven'
     }
 
-    environment {
-        DEFECTDOJO_URL = 'http://192.168.59.181:8080'
-        DEFECTDOJO_CREDENTIALS = 'd300a3c23d9964d45e5841562d659a259694a4e9' // Jenkins Credentials ID for the API token
-    }
-
     stages {
         stage('Checkout') {
             steps {
@@ -102,7 +97,7 @@ pipeline {
             }
         }
 
-        stage('DAST - ZAP Scan') {
+        stage('DAST') {
             steps {
                 sshagent(['zap']) {
                     sh '''
@@ -152,7 +147,7 @@ pipeline {
             }
         }
 
-        stage('Upload ZAP Report to DefectDojo') {
+        stage('Upload to DefectDojo') {
             steps {
                 defectDojoPublisher(
                     artifact: 'zap-report.json',
@@ -160,8 +155,8 @@ pipeline {
                     autoCreateProducts: false,
                     branchTag: '',
                     commitHash: '',
-                    defectDojoCredentialsId: "${env.DEFECTDOJO_CREDENTIALS}",
-                    defectDojoUrl: "${env.DEFECTDOJO_URL}",
+                    defectDojoCredentialsId: 'defectdojo',
+                    defectDojoUrl: 'http://192.168.59.181:8080',
                     engagementId: '3',
                     engagementName: 'WebApp CI/CD Scans',
                     productId: '1',
