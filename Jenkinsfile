@@ -113,6 +113,15 @@ pipeline {
 
                     echo "📥 Copying ZAP reports from remote to Jenkins workspace..."
                     scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/zap-report.* . || true
+                    
+                    # Verify XML report exists and is valid
+                    if [ -f zap-report.xml ]; then
+                        echo "✅ ZAP XML report generated successfully"
+                        cat zap-report.xml | head -n 5
+                    else
+                        echo "❌ ZAP XML report not found"
+                        exit 1
+                    fi
                     '''
                 }
             }
@@ -142,27 +151,40 @@ pipeline {
 
                     docker run --rm nablac0d3/sslyze:6.1.0 192.168.59.177:8443 | tee sslyze-report.txt || true
 
-                    echo "📄 SSLyze scan output saved to sslyze-report.txt"
+                    echo "�� SSLyze scan output saved to sslyze-report.txt"
                 '''
             }
         }
 
-        stage('Upload to DefectDojo') {
+        stage('Upload ZAP Results to DefectDojo') {
             steps {
-                defectDojoPublisher(
-                    artifact: 'zap-report.xml',
-                    autoCreateEngagements: false,
-                    autoCreateProducts: false,
-                    branchTag: '',
-                    commitHash: '',
-                    defectDojoCredentialsId: 'defectdojo',
-                    defectDojoUrl: 'http://192.168.59.181:8080',
-                    engagementId: '3',
-                    engagementName: 'WebApp CI/CD Scans',
-                    productId: '1',
-                    scanType: 'ZAP Scan',
-                    sourceCodeUrl: ''
-                )
+                withCredentials([string(credentialsId: 'defectdojo', variable: 'd300a3c23d9964d45e5841562d659a259694a4e9')]) {
+                    defectDojoPublisher(
+                        artifact: 'zap-report.xml',
+                        productName: 'WebApp CI/CD Scans',
+                        scanType: 'OWASP ZAP Scan',
+                        engagementName: 'WebApp CI/CD Scans',
+                        defectDojoCredentialsId: 'defectdojo',
+                        sourceCodeUrl: 'https://github.com/haedes13/webapp.git',
+                        branchTag: 'main'
+                    )
+                }
+            }
+        }
+
+        stage('Upload Dependency Check Results to DefectDojo') {
+            steps {
+                withCredentials([string(credentialsId: 'defectdojo', variable: 'd300a3c23d9964d45e5841562d659a259694a4e9')]) {
+                    defectDojoPublisher(
+                        artifact: 'target/dependency-check-report.xml',
+                        productName: 'WebApp CI/CD Scans',
+                        scanType: 'Dependency Check Scan',
+                        engagementName: 'WebApp CI/CD Scans',
+                        defectDojoCredentialsId: 'defectdojo',
+                        sourceCodeUrl: 'https://github.com/haedes13/webapp.git',
+                        branchTag: 'main'
+                    )
+                }
             }
         }
     }
@@ -173,6 +195,7 @@ pipeline {
             archiveArtifacts artifacts: 'zap-report.*', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'nikto-report.txt', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'sslyze-report.txt', onlyIfSuccessful: false
+            archiveArtifacts artifacts: 'target/dependency-check-report.xml', onlyIfSuccessful: false
         }
         success {
             echo '✅ Build, Deployment, and Security Scans completed successfully (with reports logged).'
