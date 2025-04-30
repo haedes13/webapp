@@ -160,13 +160,14 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'defectdojo', variable: 'd300a3c23d9964d45e5841562d659a259694a4e9')]) {
                     defectDojoPublisher(
-                        artifact: '/var/lib/jenkins/workspace/Webapp-cicd-pipeline/zap-report.xml',
-                        productName: 'WebApp CI/CD Scans',
-                        scanType: 'ZAP Scan',
-                        engagementName: 'WebApp CI/CD Scans',
-                        defectDojoCredentialsId: 'defectdojo',
-                        sourceCodeUrl: 'https://github.com/haedes13/webapp.git',
-                        branchTag: 'main'
+                        defectDojoUrl : 'http://192.168.59.181:8080/engagement/3/import_scan_results'
+                        artifact : '/var/lib/jenkins/workspace/Webapp-cicd-pipeline/zap-report.xml',
+                        productName : 'WebApp CI/CD Scans',
+                        scanType : 'ZAP Scan',
+                        engagementName : 'WebApp CI/CD Scans',
+                        defectDojoCredentialsId : 'defectdojo',
+                        sourceCodeUrl : 'https://github.com/haedes13/webapp.git',
+                        branchTag : 'main'
                     )
                 }
             }
