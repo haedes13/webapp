@@ -160,7 +160,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'defectdojo', variable: 'd300a3c23d9964d45e5841562d659a259694a4e9')]) {
                     defectDojoPublisher(
-                        artifact: 'Webapp-cicd-pipeline/zap-report.xml',
+                        artifact: '/var/lib/jenkins/workspace/Webapp-cicd-pipeline/zap-report.xml',
                         productName: 'WebApp CI/CD Scans',
                         scanType: 'ZAP Scan',
                         engagementName: 'WebApp CI/CD Scans',
@@ -176,7 +176,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'defectdojo', variable: 'd300a3c23d9964d45e5841562d659a259694a4e9')]) {
                     defectDojoPublisher(
-                        artifact: 'Webapp-cicd-pipeline/dependency-check-report.xml',
+                        artifact: '/var/lib/jenkins/workspace/Webapp-cicd-pipeline/dependency-check-report.xml',
                         productName: 'WebApp CI/CD Scans',
                         scanType: 'Dependency Check Scan',
                         engagementName: 'WebApp CI/CD Scans',
