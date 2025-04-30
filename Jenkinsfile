@@ -162,7 +162,7 @@ pipeline {
                     defectDojoPublisher(
                         artifact: 'zap-report.xml',
                         productName: 'WebApp CI/CD Scans',
-                        scanType: 'OWASP ZAP Scan',
+                        scanType: 'ZAP Scan',
                         engagementName: 'WebApp CI/CD Scans',
                         defectDojoCredentialsId: 'defectdojo',
                         sourceCodeUrl: 'https://github.com/haedes13/webapp.git',
