@@ -160,7 +160,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'defectdojo', variable: 'DEFECTDOJO_API_KEY')]) {
                     defectDojoPublisher(
-                        artifact : '/var/lib/jenkins/workspace/Webapp-cicd-pipeline/zap-report.xml',
+                        artifact : '/var/lib/jenkins/workspace/Webapp-cicd-pipeline/zap-report.json',
                         defectDojoUrl : 'http://192.168.59.181:8080/engagement/3/import_scan_results',
                         productName : 'WebApp CI/CD Scans',
                         scanType : 'ZAP Scan',
