@@ -151,7 +151,7 @@ pipeline {
 
                     docker run --rm nablac0d3/sslyze:6.1.0 192.168.59.177:8443 | tee sslyze-report.txt || true
 
-                    echo "�� SSLyze scan output saved to sslyze-report.txt"
+                    echo "✅ SSLyze scan output saved to sslyze-report.txt"
                 '''
             }
         }
@@ -163,22 +163,6 @@ pipeline {
                         artifact: '/var/lib/jenkins/workspace/Webapp-cicd-pipeline/zap-report.xml',
                         productName: 'WebApp CI/CD Scans',
                         scanType: 'ZAP Scan',
-                        engagementName: 'WebApp CI/CD Scans',
-                        defectDojoCredentialsId: 'defectdojo',
-                        sourceCodeUrl: 'https://github.com/haedes13/webapp.git',
-                        branchTag: 'main'
-                    )
-                }
-            }
-        }
-
-        stage('Upload Dependency Check Results to DefectDojo') {
-            steps {
-                withCredentials([string(credentialsId: 'defectdojo', variable: 'd300a3c23d9964d45e5841562d659a259694a4e9')]) {
-                    defectDojoPublisher(
-                        artifact: '/var/lib/jenkins/workspace/Webapp-cicd-pipeline/dependency-check-report.xml',
-                        productName: 'WebApp CI/CD Scans',
-                        scanType: 'Dependency Check Scan',
                         engagementName: 'WebApp CI/CD Scans',
                         defectDojoCredentialsId: 'defectdojo',
                         sourceCodeUrl: 'https://github.com/haedes13/webapp.git',
