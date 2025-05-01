@@ -166,7 +166,7 @@ pipeline {
                     branchTag: '',
                     commitHash: '',
                     defectDojoCredentialsId: 'defectdojo',
-                    defectDojoUrl: 'http://192.168.59.181:8080/',
+                    defectDojoUrl: 'http://192.168.59.181:8080/api/v2/import-scan/',
                     engagementId: '3',
                     engagementName: 'WebApp CI/CD Scans',
                     overrideGlobals: true,
