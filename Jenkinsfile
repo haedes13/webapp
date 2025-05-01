@@ -156,22 +156,6 @@ pipeline {
             }
         }
 
-        stage('Upload ZAP Results to DefectDojo (with credentials block)') {
-            steps {
-                withCredentials([string(credentialsId: 'defectdojo', variable: 'DEFECTDOJO_API_KEY')]) {
-                    defectDojoPublisher(
-                        artifact : '/var/lib/jenkins/workspace/Webapp-cicd-pipeline/zap-report.xml',
-                        defectDojoUrl : 'http://192.168.59.181:8080/',
-                        productName : 'WebApp CI/CD Scans',
-                        scanType : 'ZAP Scan',
-                        engagementName : 'WebApp CI/CD Scans',
-                        defectDojoCredentialsId : 'defectdojo',
-                        sourceCodeUrl : 'https://github.com/haedes13/webapp.git',
-                        branchTag : 'main'
-                    )
-                }
-            }
-        }
 
         stage('Upload ZAP Results to DefectDojo (overrideGlobals)') {
             steps {
@@ -182,7 +166,7 @@ pipeline {
                     branchTag: '',
                     commitHash: '',
                     defectDojoCredentialsId: 'defectdojo',
-                    defectDojoUrl: 'http://192.168.59.181:8080/engagement/3/import_scan_results',
+                    defectDojoUrl: 'http://192.168.59.181:8080/',
                     engagementId: '3',
                     engagementName: 'WebApp CI/CD Scans',
                     overrideGlobals: true,
