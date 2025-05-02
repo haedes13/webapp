@@ -19,8 +19,8 @@ pipeline {
             }
         }
 
-        stage('Check-Git-Secrets') { 
-            steps { 
+        stage('Check-Git-Secrets') {
+            steps {
                 sh '''
                     echo "🔍 Running TruffleHog..."
                     docker run --rm gesellix/trufflehog --json https://github.com/haedes13/webapp.git > trufflehog.json || true
@@ -33,7 +33,7 @@ pipeline {
             steps {
                 sh '''
                     echo "📦 Running OWASP Dependency Check..."
-                    rm owasp* || true
+                    rm -f owasp* || true
                     wget "https://raw.githubusercontent.com/haedes13/webapp/refs/heads/master/owasp-dependency-check.sh" || true
                     chmod +x owasp-dependency-check.sh || true
                     bash owasp-dependency-check.sh || true
@@ -61,7 +61,7 @@ pipeline {
 
         stage('Deploy-To-Tomcat') {
             steps {
-                sshagent(['tomcat']) { 
+                sshagent(['tomcat']) {
                     sh 'scp -o StrictHostKeyChecking=no target/*.war tomcat@192.168.59.177:/home/tomcat/apache-tomcat-9.0.102/webapps/webapp.war || true'
                 }
             }
@@ -117,9 +117,9 @@ pipeline {
                       -x zap-report.xml || true
                     '
 
-                    echo "📥 Copying ZAP reports from remote to Jenkins workspace..."
+                    echo "📥 Copying ZAP reports..."
                     scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/zap-report.* . || true
-                    
+
                     if [ -f zap-report.xml ]; then
                         echo "✅ ZAP XML report generated successfully"
                         head -n 5 zap-report.xml
@@ -144,7 +144,13 @@ pipeline {
                     '
 
                     echo "📥 Copying Nikto reports..."
-                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/nikto-report.* . || true
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/nikto-report.txt . || true
+                    scp -o StrictHostKeyChecking=no owaspzap@192.168.59.180:/tmp/nikto-report.json . || true
+
+                    if [ ! -s nikto-report.json ]; then
+                        echo "❌ Nikto JSON report was not generated properly!"
+                        exit 1
+                    fi
                     '''
                 }
             }
@@ -153,11 +159,17 @@ pipeline {
         stage('SSL Certificate Check') {
             steps {
                 sh '''
-                    echo "🔒 Running SSLyze scan..."
+                    echo "🔒 Running SSLyze scan for DefectDojo-compatible JSON..."
 
-                    docker run --rm nablac0d3/sslyze:6.1.0 192.168.59.177:8443 --json_out sslyze-report.json | tee sslyze-report.txt || true
+                    docker run --rm -v $(pwd):/app nablac0d3/sslyze:6.1.0 \
+                        sslyze --json_out=/app/sslyze-report.json 192.168.59.177:8443 || true
 
-                    echo "✅ SSLyze scan completed"
+                    if jq empty sslyze-report.json >/dev/null 2>&1; then
+                        echo "✅ SSLyze JSON report is valid and well-formed."
+                    else
+                        echo "❌ SSLyze JSON report is malformed or empty."
+                        exit 1
+                    fi
                 '''
             }
         }
@@ -168,7 +180,7 @@ pipeline {
             archiveArtifacts artifacts: 'portscan.txt, formatted-ports.txt, unexpected-ports.txt, vulnscan.txt, detected-vulns.txt', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'zap-report.*', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'nikto-report.txt, nikto-report.json', onlyIfSuccessful: false
-            archiveArtifacts artifacts: 'sslyze-report.txt, sslyze-report.json', onlyIfSuccessful: false
+            archiveArtifacts artifacts: 'sslyze-report.json', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'trufflehog.json', onlyIfSuccessful: false
             archiveArtifacts artifacts: 'target/dependency-check-report.xml', onlyIfSuccessful: false
         }
